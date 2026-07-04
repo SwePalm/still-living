@@ -12,8 +12,14 @@ whose mood is steered by the world outside:
 - **temperature** → warm/cool tint
 - **cloud cover** → contrast and softness
 - **rain** → grey-blue wash and a falling shimmer
+- **snow** → a hushed pale wash with drifting flakes in three parallax layers
 - **sun** → day palette (ochre / slate blue) fades to night palette (ink / cold teal),
   ramping over ~80 minutes around the real local sunrise and sunset
+- **clear dark nights** → stars appear, twinkling through the thin parts of the ink
+
+The field expands perpetually toward the viewer (two zoom layers crossfading, so it
+never visibly resets), and its breathing is a blend of three incommensurate periods —
+calm, but never repeating.
 
 Weather comes from [Open-Meteo](https://open-meteo.com) (free, no API key) and refreshes
 every 15 minutes. Mood changes drift in over ~45 seconds — the organism never jumps.
@@ -45,6 +51,8 @@ Force a mood with URL params (skips live weather):
 
 ```
 ?night=1&temp=-5&cloud=90&wind=40&rain=1&fast=1
+?snow=1&temp=-3&cloud=80&fast=1          # snowfall
+?night=1&cloud=5&fast=1                  # clear starry night
 ```
 
 ## Adaptive quality

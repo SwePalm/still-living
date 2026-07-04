@@ -50,7 +50,9 @@ uniform float u_warp;    // turbulence (wind)
 uniform float u_warmth;  // -1 cold .. +1 warm (temperature)
 uniform float u_soft;    // 0 crisp .. 1 soft (cloud cover)
 uniform float u_wet;     // 0 dry .. 1 raining (precipitation)
+uniform float u_snow;    // 0 .. 1 snowing
 uniform float u_night;   // 0 day .. 1 night (sun position)
+uniform float u_breath;  // layered non-repeating breathing, computed in JS
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -82,13 +84,24 @@ vec3 pal(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   return a + b * cos(6.28318 * (c * t + d));
 }
 
+float snowLayer(vec2 uv, float scale, float t, float size) {
+  vec2 p = uv * scale;
+  p.y += t * scale * 0.5;
+  p.x += sin(p.y * 0.6 + t * 2.0) * 0.25;
+  vec2 id = floor(p);
+  vec2 f = fract(p) - 0.5;
+  float rnd = hash(id);
+  vec2 off = (vec2(rnd, fract(rnd * 34.7)) - 0.5) * 0.6;
+  float d = length(f - off);
+  float glow = 1.0 - smoothstep(0.0, size, d);
+  return glow * glow * (0.4 + 0.6 * fract(rnd * 13.1));
+}
+
 void main() {
   vec2 uv = (gl_FragCoord.xy * 2.0 - u_res) / min(u_res.x, u_res.y);
   float t = u_time * 0.03 * u_flow;
 
-  // ~7 second breathing cycle modulating the turbulence
-  float breath = 0.5 + 0.5 * sin(u_time * 0.897);
-  float w = u_warp * (0.85 + 0.18 * breath);
+  float w = u_warp * (0.85 + 0.18 * u_breath);
 
   // two-stage domain warp: the flow field the organism lives in
   vec2 q = vec2(
@@ -97,7 +110,17 @@ void main() {
   vec2 r = vec2(
     fbm(uv + w * q + vec2(1.7, 9.2) + 0.150 * t),
     fbm(uv + w * q + vec2(8.3, 2.8) - 0.126 * t));
-  float f = fbm(uv + w * r * 1.5);
+  // perpetual expansion: two zoom layers crossfading, so the field
+  // always grows toward the viewer without ever visibly resetting
+  float cycle = u_time * 0.012 * u_flow;
+  float ph1 = fract(cycle);
+  float ph2 = fract(cycle + 0.5);
+  float s1 = exp2(mix(0.6, -0.6, ph1));
+  float s2 = exp2(mix(0.6, -0.6, ph2));
+  float w1 = 1.0 - abs(ph1 * 2.0 - 1.0);
+  float f1 = fbm(uv * s1 + w * r * 1.5);
+  float f2 = fbm(uv * s2 + w * r * 1.5 + vec2(17.3, 9.1));
+  float f = mix(f2, f1, w1);
 
   // clouds soften contrast; rain flattens and cools
   float contrast = mix(1.45, 0.95, u_soft);
@@ -124,14 +147,32 @@ void main() {
   // temperature tint
   col *= mix(vec3(0.94, 0.98, 1.07), vec3(1.07, 1.00, 0.92), u_warmth * 0.5 + 0.5);
 
-  // rain: cool grey wash and a fine falling shimmer
-  float shimmer = noise(vec2(gl_FragCoord.x * 0.7, gl_FragCoord.y * 0.12 + u_time * 9.0));
+  // rain: cool grey wash and a slow falling shimmer
+  float shimmer = noise(vec2(gl_FragCoord.x * 0.7, gl_FragCoord.y * 0.06 + u_time * 3.5));
   col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))) * vec3(0.82, 0.88, 1.0), u_wet * 0.35);
-  col += u_wet * 0.05 * shimmer;
+  col += u_wet * 0.03 * shimmer;
 
-  // vignette and film grain (hides banding on TVs)
+  // clear dark nights: stars peek through the thin parts of the ink
+  float starVis = u_night * u_night * (1.0 - u_soft) * (1.0 - u_wet) * (1.0 - u_snow);
+  vec2 sp = uv * 24.0;
+  vec2 sid = floor(sp);
+  vec2 sf = fract(sp) - 0.5;
+  float srnd = hash(sid);
+  vec2 soff = (vec2(srnd, fract(srnd * 34.7)) - 0.5) * 0.7;
+  float twinkle = 0.65 + 0.35 * sin(u_time * (0.2 + 0.5 * srnd) + srnd * 41.0);
+  float star = (1.0 - smoothstep(0.02, 0.11, length(sf - soff))) * step(0.94, srnd) * twinkle;
+  col += star * starVis * smoothstep(0.68, 0.28, f) * vec3(1.0, 1.05, 1.25);
+
+  // snow: hushed pale wash and three parallax layers of drifting flakes
+  col = mix(col, col * 0.55 + vec3(0.30, 0.32, 0.37), u_snow * 0.45);
+  float flakes = snowLayer(uv, 5.0, u_time * 0.27, 0.16)
+    + snowLayer(uv, 8.0, u_time * 0.20, 0.13) * 0.7
+    + snowLayer(uv, 13.0, u_time * 0.14, 0.11) * 0.45;
+  col += clamp(flakes, 0.0, 1.0) * u_snow * vec3(0.85, 0.89, 0.98);
+
+  // vignette and a static fine grain (breaks banding without flicker)
   col *= 1.0 - 0.28 * dot(uv * 0.72, uv * 0.72);
-  col += (hash(gl_FragCoord.xy + fract(u_time) * 100.0) - 0.5) * 0.035;
+  col += (hash(gl_FragCoord.xy) - 0.5) * 0.02;
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -185,13 +226,13 @@ gl.enableVertexAttribArray(loc);
 gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
 const U = {};
-for (const name of ["u_res", "u_time", "u_flow", "u_warp", "u_warmth", "u_soft", "u_wet", "u_night"]) {
+for (const name of ["u_res", "u_time", "u_flow", "u_warp", "u_warmth", "u_soft", "u_wet", "u_snow", "u_night", "u_breath"]) {
   U[name] = gl.getUniformLocation(prog, name);
 }
 
 // --- mood: current state drifts toward targets ----------------------------
 // neutral starting mood so the first minutes look good even with no network
-const mood = { flow: 0.8, warp: 1.0, warmth: 0.0, soft: 0.4, wet: 0.0, night: 0.3 };
+const mood = { flow: 0.8, warp: 1.0, warmth: 0.0, soft: 0.4, wet: 0.0, snow: 0.0, night: 0.3 };
 const target = { ...mood };
 let moodLabel = "";
 let sunTimes = null; // { sunrise: Date, sunset: Date }
@@ -201,15 +242,18 @@ function applyWeather(w) {
   const temp = w.temperature_2m ?? 10;          // °C
   const cloud = w.cloud_cover ?? 50;            // %
   const precip = w.precipitation ?? 0;          // mm
+  const snowfall = w.snowfall ?? 0;             // cm
 
   target.flow = 0.5 + Math.min(wind / 40, 1) * 0.9;
   target.warp = 0.75 + Math.min(wind / 50, 1) * 0.85;
   target.warmth = Math.max(-1, Math.min(1, (temp - 8) / 22));
   target.soft = cloud / 100;
-  target.wet = Math.max(0, Math.min(1, precip / 1.5));
+  target.snow = Math.max(0, Math.min(1, snowfall / 0.7));
+  // snow replaces rain — precipitation includes the melted snow amount
+  target.wet = target.snow > 0.05 ? 0 : Math.max(0, Math.min(1, precip / 1.5));
 
   moodLabel = `${Math.round(temp)}°  wind ${Math.round(wind)}  cloud ${Math.round(cloud)}%` +
-    (precip > 0 ? "  rain" : "");
+    (snowfall > 0 ? "  snow" : precip > 0 ? "  rain" : "");
 }
 
 function updateNight() {
@@ -232,7 +276,7 @@ function updateNight() {
 async function fetchWeather() {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
-      `&current=temperature_2m,wind_speed_10m,cloud_cover,precipitation` +
+      `&current=temperature_2m,wind_speed_10m,cloud_cover,precipitation,snowfall` +
       `&daily=sunrise,sunset&timezone=auto&forecast_days=1`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`weather http ${res.status}`);
@@ -259,9 +303,10 @@ function applyOverrides() {
   if (o("temp") !== null) target.warmth = Math.max(-1, Math.min(1, (o("temp") - 8) / 22));
   if (o("cloud") !== null) target.soft = o("cloud") / 100;
   if (o("rain") !== null) target.wet = o("rain");
+  if (o("snow") !== null) target.snow = o("snow");
   if (o("fast") !== null) { for (const k in target) mood[k] = target[k]; } // skip the slow drift
 }
-const hasOverrides = ["night", "wind", "temp", "cloud", "rain"].some((k) => params.has(k));
+const hasOverrides = ["night", "wind", "temp", "cloud", "rain", "snow"].some((k) => params.has(k));
 
 // --- hud ------------------------------------------------------------------
 let hudTimer = null;
@@ -307,14 +352,23 @@ function frame(now) {
   const k = 1 - Math.exp(-dt / MOOD_TAU_S);
   for (const key in mood) mood[key] += (target[key] - mood[key]) * k;
 
+  // breathing from three incommensurate periods — calm, but never repeating
+  const ts = (now - t0) / 1000;
+  const breath = 0.5
+    + 0.26 * Math.sin(ts * 2 * Math.PI / 7.3)
+    + 0.15 * Math.sin(ts * 2 * Math.PI / 11.9 + 1.7)
+    + 0.09 * Math.sin(ts * 2 * Math.PI / 28.6 + 4.2);
+
   gl.uniform2f(U.u_res, canvas.width, canvas.height);
-  gl.uniform1f(U.u_time, (now - t0) / 1000);
+  gl.uniform1f(U.u_time, ts);
   gl.uniform1f(U.u_flow, mood.flow);
   gl.uniform1f(U.u_warp, mood.warp);
   gl.uniform1f(U.u_warmth, mood.warmth);
   gl.uniform1f(U.u_soft, mood.soft);
   gl.uniform1f(U.u_wet, mood.wet);
+  gl.uniform1f(U.u_snow, mood.snow);
   gl.uniform1f(U.u_night, mood.night);
+  gl.uniform1f(U.u_breath, Math.max(0, Math.min(1, breath)));
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
   // fps governor
