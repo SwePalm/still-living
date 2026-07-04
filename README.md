@@ -25,6 +25,21 @@ Weather comes from [Open-Meteo](https://open-meteo.com) (free, no API key) and r
 every 15 minutes. Mood changes drift in over ~45 seconds — the organism never jumps.
 If the network is down it keeps living on its last mood.
 
+## Evolution
+
+The artwork is split into a **body** (`index.html`, the machinery) and a **genome**
+(`genome.json`, the DNA: palettes, breath, motion, weather mapping). An autonomous
+agent mutates the genome — one mutation per run, human *on* the loop, not in it:
+
+- [CONSTITUTION.md](CONSTITUTION.md) — the scope contract: free within it, proposal
+  + human yes beyond it
+- [EVOLVE.md](EVOLVE.md) — the ritual the evolving agent follows
+- [MUTATIONS.md](MUTATIONS.md) — the lineage; humans write binding verdicts here
+
+The living page re-fetches the genome hourly and fades new values in over minutes,
+so evolution happens on the wall, not on reload. A broken or missing genome can
+never black the screen: the body carries a fallback copy of generation 0.
+
 ## Run
 
 Open `index.html` in any browser, or serve the folder:

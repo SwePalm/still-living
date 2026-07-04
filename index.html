@@ -52,7 +52,17 @@ uniform float u_soft;    // 0 crisp .. 1 soft (cloud cover)
 uniform float u_wet;     // 0 dry .. 1 raining (precipitation)
 uniform float u_snow;    // 0 .. 1 snowing
 uniform float u_night;   // 0 day .. 1 night (sun position)
-uniform float u_breath;  // layered non-repeating breathing, computed in JS
+uniform float u_wmul;    // warp multiplier incl. breathing, computed in JS
+
+// genome-driven parameters (see genome.json)
+uniform vec3 u_dayA; uniform vec3 u_dayB; uniform vec3 u_dayD;
+uniform vec3 u_nightA; uniform vec3 u_nightB; uniform vec3 u_nightD;
+uniform vec3 u_tintWarm; uniform vec3 u_tintCool;
+uniform vec3 u_starTint; uniform vec3 u_snowTint;
+uniform float u_flowRate; uniform float u_warpPush;
+uniform float u_expRate; uniform float u_expRange;
+uniform float u_contrast; uniform float u_vig; uniform float u_grain;
+uniform float u_starThresh; uniform float u_starSize; uniform float u_snowWash;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -99,9 +109,9 @@ float snowLayer(vec2 uv, float scale, float t, float size) {
 
 void main() {
   vec2 uv = (gl_FragCoord.xy * 2.0 - u_res) / min(u_res.x, u_res.y);
-  float t = u_time * 0.03 * u_flow;
+  float t = u_time * u_flowRate * u_flow;
 
-  float w = u_warp * (0.85 + 0.18 * u_breath);
+  float w = u_warp * u_wmul;
 
   // two-stage domain warp: the flow field the organism lives in
   vec2 q = vec2(
@@ -112,31 +122,21 @@ void main() {
     fbm(uv + w * q + vec2(8.3, 2.8) - 0.126 * t));
   // perpetual expansion: two zoom layers crossfading, so the field
   // always grows toward the viewer without ever visibly resetting
-  float cycle = u_time * 0.012 * u_flow;
+  float cycle = u_time * u_expRate * u_flow;
   float ph1 = fract(cycle);
   float ph2 = fract(cycle + 0.5);
-  float s1 = exp2(mix(0.6, -0.6, ph1));
-  float s2 = exp2(mix(0.6, -0.6, ph2));
+  float s1 = exp2(mix(u_expRange, -u_expRange, ph1));
+  float s2 = exp2(mix(u_expRange, -u_expRange, ph2));
   float w1 = 1.0 - abs(ph1 * 2.0 - 1.0);
-  float f1 = fbm(uv * s1 + w * r * 1.5);
-  float f2 = fbm(uv * s2 + w * r * 1.5 + vec2(17.3, 9.1));
+  float f1 = fbm(uv * s1 + w * r * u_warpPush);
+  float f2 = fbm(uv * s2 + w * r * u_warpPush + vec2(17.3, 9.1));
   float f = mix(f2, f1, w1);
 
-  // clouds soften contrast; rain flattens and cools
-  float contrast = mix(1.45, 0.95, u_soft);
-  float fc = pow(clamp(f, 0.0, 1.0), contrast);
+  // clouds soften contrast (u_contrast blended in JS); rain flattens and cools
+  float fc = pow(clamp(f, 0.0, 1.0), u_contrast);
 
-  // day: ochre, slate blue, warm ivory — night: deep ink and cold teal
-  vec3 day = pal(fc,
-    vec3(0.46, 0.42, 0.38),
-    vec3(0.38, 0.32, 0.28),
-    vec3(1.0),
-    vec3(0.02, 0.12, 0.28));
-  vec3 night = pal(fc,
-    vec3(0.09, 0.11, 0.15),
-    vec3(0.11, 0.15, 0.21),
-    vec3(1.0),
-    vec3(0.55, 0.62, 0.72));
+  vec3 day = pal(fc, u_dayA, u_dayB, vec3(1.0), u_dayD);
+  vec3 night = pal(fc, u_nightA, u_nightB, vec3(1.0), u_nightD);
   vec3 col = mix(day, night, u_night);
 
   // deep currents darken, fast eddies glow
@@ -145,7 +145,7 @@ void main() {
   col += vec3(0.04, 0.07, 0.10) * u_night * smoothstep(0.5, 0.9, r.y);
 
   // temperature tint
-  col *= mix(vec3(0.94, 0.98, 1.07), vec3(1.07, 1.00, 0.92), u_warmth * 0.5 + 0.5);
+  col *= mix(u_tintCool, u_tintWarm, u_warmth * 0.5 + 0.5);
 
   // rain: cool grey wash and a slow falling shimmer
   float shimmer = noise(vec2(gl_FragCoord.x * 0.7, gl_FragCoord.y * 0.06 + u_time * 3.5));
@@ -160,19 +160,19 @@ void main() {
   float srnd = hash(sid);
   vec2 soff = (vec2(srnd, fract(srnd * 34.7)) - 0.5) * 0.7;
   float twinkle = 0.65 + 0.35 * sin(u_time * (0.2 + 0.5 * srnd) + srnd * 41.0);
-  float star = (1.0 - smoothstep(0.02, 0.11, length(sf - soff))) * step(0.94, srnd) * twinkle;
-  col += star * starVis * smoothstep(0.68, 0.28, f) * vec3(1.0, 1.05, 1.25);
+  float star = (1.0 - smoothstep(0.02, u_starSize, length(sf - soff))) * step(u_starThresh, srnd) * twinkle;
+  col += star * starVis * smoothstep(0.68, 0.28, f) * u_starTint;
 
   // snow: hushed pale wash and three parallax layers of drifting flakes
-  col = mix(col, col * 0.55 + vec3(0.30, 0.32, 0.37), u_snow * 0.45);
+  col = mix(col, col * 0.55 + vec3(0.30, 0.32, 0.37), u_snow * u_snowWash);
   float flakes = snowLayer(uv, 5.0, u_time * 0.27, 0.16)
     + snowLayer(uv, 8.0, u_time * 0.20, 0.13) * 0.7
     + snowLayer(uv, 13.0, u_time * 0.14, 0.11) * 0.45;
-  col += clamp(flakes, 0.0, 1.0) * u_snow * vec3(0.85, 0.89, 0.98);
+  col += clamp(flakes, 0.0, 1.0) * u_snow * u_snowTint;
 
   // vignette and a static fine grain (breaks banding without flicker)
-  col *= 1.0 - 0.28 * dot(uv * 0.72, uv * 0.72);
-  col += (hash(gl_FragCoord.xy) - 0.5) * 0.02;
+  col *= 1.0 - u_vig * dot(uv * 0.72, uv * 0.72);
+  col += (hash(gl_FragCoord.xy) - 0.5) * u_grain;
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -187,6 +187,76 @@ const LAT = parseFloat(params.get("lat") || "59.3293");   // default: Stockholm
 const LON = parseFloat(params.get("lon") || "18.0686");
 const WEATHER_REFRESH_MS = 15 * 60 * 1000;
 const MOOD_TAU_S = 45;   // seconds for a mood change to settle — imperceptibly slow
+const GENOME_REFRESH_MS = 60 * 60 * 1000;
+const GENOME_TAU_S = 60; // a new genome fades in over a couple of minutes
+
+// --- genome: the mutable DNA (see genome.json, CONSTITUTION.md) -------------
+// This fallback copy is the organism's survival guarantee: if genome.json is
+// missing, broken, or unreachable, this is what keeps living on screen.
+const DEFAULT_GENOME = {
+  generation: 0,
+  species: "ink",
+  breath: [
+    { period: 7.3, amp: 0.26, phase: 0.0 },
+    { period: 11.9, amp: 0.15, phase: 1.7 },
+    { period: 28.6, amp: 0.09, phase: 4.2 }
+  ],
+  palette: {
+    day:   { a: [0.46, 0.42, 0.38], b: [0.38, 0.32, 0.28], d: [0.02, 0.12, 0.28] },
+    night: { a: [0.09, 0.11, 0.15], b: [0.11, 0.15, 0.21], d: [0.55, 0.62, 0.72] },
+    warmTint: [1.07, 1.00, 0.92],
+    coolTint: [0.94, 0.98, 1.07]
+  },
+  motion: {
+    flowRate: 0.03, warpBase: 0.85, warpBreath: 0.18,
+    warpPush: 1.5, expansionRate: 0.012, expansionRange: 0.6
+  },
+  look: { contrastCrisp: 1.45, contrastSoft: 0.95, vignette: 0.28, grain: 0.02 },
+  stars: { threshold: 0.94, size: 0.11, tint: [1.0, 1.05, 1.25] },
+  snow: { wash: 0.45, tint: [0.85, 0.89, 0.98] },
+  weather: {
+    flowBase: 0.5, flowWind: 0.9, warpBaseMood: 0.75,
+    warpWind: 0.85, warmthPivot: 8, warmthScale: 22
+  }
+};
+
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let G = clone(DEFAULT_GENOME);   // what renders right now
+let Gt = clone(DEFAULT_GENOME);  // what it is drifting toward
+
+// take incoming values only where they are sane; keep the reference otherwise
+function saneMerge(incoming, ref) {
+  if (typeof ref === "number") {
+    return typeof incoming === "number" && isFinite(incoming) ? incoming : ref;
+  }
+  if (Array.isArray(ref)) return ref.map((v, i) => saneMerge(incoming && incoming[i], v));
+  if (typeof ref === "object") {
+    const out = {};
+    for (const k in ref) out[k] = saneMerge(incoming && incoming[k], ref[k]);
+    return out;
+  }
+  return typeof incoming === typeof ref ? incoming : ref;
+}
+
+function lerpGenome(cur, tgt, k) {
+  for (const key in tgt) {
+    const t = tgt[key];
+    if (key === "generation" || typeof t === "string") cur[key] = t;
+    else if (typeof t === "number") cur[key] += (t - cur[key]) * k;
+    else lerpGenome(cur[key], t, k);
+  }
+}
+
+async function fetchGenome() {
+  try {
+    const res = await fetch(`genome.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return;
+    Gt = saneMerge(await res.json(), DEFAULT_GENOME);
+    if (lastWeather) applyWeather(lastWeather);
+  } catch (err) {
+    console.warn("genome unreachable, living on the current one", err);
+  }
+}
 
 // --- webgl setup ----------------------------------------------------------
 const canvas = document.getElementById("c");
@@ -226,7 +296,11 @@ gl.enableVertexAttribArray(loc);
 gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
 const U = {};
-for (const name of ["u_res", "u_time", "u_flow", "u_warp", "u_warmth", "u_soft", "u_wet", "u_snow", "u_night", "u_breath"]) {
+for (const name of ["u_res", "u_time", "u_flow", "u_warp", "u_warmth", "u_soft", "u_wet",
+  "u_snow", "u_night", "u_wmul", "u_dayA", "u_dayB", "u_dayD", "u_nightA", "u_nightB",
+  "u_nightD", "u_tintWarm", "u_tintCool", "u_starTint", "u_snowTint", "u_flowRate",
+  "u_warpPush", "u_expRate", "u_expRange", "u_contrast", "u_vig", "u_grain",
+  "u_starThresh", "u_starSize", "u_snowWash"]) {
   U[name] = gl.getUniformLocation(prog, name);
 }
 
@@ -236,17 +310,20 @@ const mood = { flow: 0.8, warp: 1.0, warmth: 0.0, soft: 0.4, wet: 0.0, snow: 0.0
 const target = { ...mood };
 let moodLabel = "";
 let sunTimes = null; // { sunrise: Date, sunset: Date }
+let lastWeather = null;
 
 function applyWeather(w) {
+  lastWeather = w;
   const wind = w.wind_speed_10m ?? 10;          // km/h
   const temp = w.temperature_2m ?? 10;          // °C
   const cloud = w.cloud_cover ?? 50;            // %
   const precip = w.precipitation ?? 0;          // mm
   const snowfall = w.snowfall ?? 0;             // cm
 
-  target.flow = 0.5 + Math.min(wind / 40, 1) * 0.9;
-  target.warp = 0.75 + Math.min(wind / 50, 1) * 0.85;
-  target.warmth = Math.max(-1, Math.min(1, (temp - 8) / 22));
+  const gw = Gt.weather;
+  target.flow = gw.flowBase + Math.min(wind / 40, 1) * gw.flowWind;
+  target.warp = gw.warpBaseMood + Math.min(wind / 50, 1) * gw.warpWind;
+  target.warmth = Math.max(-1, Math.min(1, (temp - gw.warmthPivot) / gw.warmthScale));
   target.soft = cloud / 100;
   target.snow = Math.max(0, Math.min(1, snowfall / 0.7));
   // snow replaces rain — precipitation includes the melted snow amount
@@ -322,7 +399,7 @@ document.addEventListener("keydown", (e) => {
   if (k === "f") {
     document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   } else if (k === "h") {
-    showHud(moodLabel || "no weather yet");
+    showHud(`${moodLabel || "no weather yet"} · gen ${Gt.generation}`);
   }
 });
 
@@ -352,13 +429,16 @@ function frame(now) {
   const k = 1 - Math.exp(-dt / MOOD_TAU_S);
   for (const key in mood) mood[key] += (target[key] - mood[key]) * k;
 
-  // breathing from three incommensurate periods — calm, but never repeating
-  const ts = (now - t0) / 1000;
-  const breath = 0.5
-    + 0.26 * Math.sin(ts * 2 * Math.PI / 7.3)
-    + 0.15 * Math.sin(ts * 2 * Math.PI / 11.9 + 1.7)
-    + 0.09 * Math.sin(ts * 2 * Math.PI / 28.6 + 4.2);
+  // a fresh genome drifts in just as slowly as a mood change
+  lerpGenome(G, Gt, 1 - Math.exp(-dt / GENOME_TAU_S));
 
+  // breathing from incommensurate periods — calm, but never repeating
+  const ts = (now - t0) / 1000;
+  let breath = 0.5;
+  for (const o of G.breath) breath += o.amp * Math.sin(ts * 2 * Math.PI / o.period + o.phase);
+  breath = Math.max(0, Math.min(1, breath));
+
+  const v3 = (n, a) => gl.uniform3f(U[n], a[0], a[1], a[2]);
   gl.uniform2f(U.u_res, canvas.width, canvas.height);
   gl.uniform1f(U.u_time, ts);
   gl.uniform1f(U.u_flow, mood.flow);
@@ -368,7 +448,21 @@ function frame(now) {
   gl.uniform1f(U.u_wet, mood.wet);
   gl.uniform1f(U.u_snow, mood.snow);
   gl.uniform1f(U.u_night, mood.night);
-  gl.uniform1f(U.u_breath, Math.max(0, Math.min(1, breath)));
+  gl.uniform1f(U.u_wmul, G.motion.warpBase + G.motion.warpBreath * breath);
+  v3("u_dayA", G.palette.day.a); v3("u_dayB", G.palette.day.b); v3("u_dayD", G.palette.day.d);
+  v3("u_nightA", G.palette.night.a); v3("u_nightB", G.palette.night.b); v3("u_nightD", G.palette.night.d);
+  v3("u_tintWarm", G.palette.warmTint); v3("u_tintCool", G.palette.coolTint);
+  v3("u_starTint", G.stars.tint); v3("u_snowTint", G.snow.tint);
+  gl.uniform1f(U.u_flowRate, G.motion.flowRate);
+  gl.uniform1f(U.u_warpPush, G.motion.warpPush);
+  gl.uniform1f(U.u_expRate, G.motion.expansionRate);
+  gl.uniform1f(U.u_expRange, G.motion.expansionRange);
+  gl.uniform1f(U.u_contrast, G.look.contrastCrisp + (G.look.contrastSoft - G.look.contrastCrisp) * mood.soft);
+  gl.uniform1f(U.u_vig, G.look.vignette);
+  gl.uniform1f(U.u_grain, G.look.grain);
+  gl.uniform1f(U.u_starThresh, G.stars.threshold);
+  gl.uniform1f(U.u_starSize, G.stars.size);
+  gl.uniform1f(U.u_snowWash, G.snow.wash);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
   // fps governor
@@ -386,6 +480,16 @@ function frame(now) {
 }
 
 // --- start ------------------------------------------------------------------
+fetchGenome();
+setInterval(fetchGenome, GENOME_REFRESH_MS);
+
+// debug handle for evolve-ritual validation and console experiments
+window.stillLiving = {
+  genome: () => clone(G),
+  apply: (g, fast) => { Gt = saneMerge(g, Gt); if (fast) G = clone(Gt); },
+  reload: fetchGenome
+};
+
 if (!hasOverrides) {
   updateNight();
   fetchWeather();
