@@ -26,3 +26,20 @@ distinct from each other and from day. No console errors, no near-black or
 near-white frames. Against the identity clause: still abstract, calm, continuous,
 still the same organism — this is a mood tint, not a new species.
 Verdict:
+
+## generation 2 — white nights (2026-07-10)
+
+Generation 1 warmed the days; this one takes the other half of the Nordic high
+summer: the nights. Stockholm in July never gets truly dark, so the night palette
+lifts slightly toward a pale luminous blue — `palette.night.a` from
+[0.09, 0.11, 0.15] to [0.11, 0.13, 0.18], `b` from [0.11, 0.15, 0.21] to
+[0.12, 0.16, 0.22], `d` from [0.55, 0.62, 0.72] to [0.56, 0.63, 0.71]. Day,
+tints, motion, stars, snow untouched. All values within a/b (0–1) and d-phase
+(0–1) ranges. Screenshots at the five forced-mood URLs: overcast night now reads
+as a pale grey-blue dusk rather than deep ink; starry night reads as a real
+summer night — faint stars in a luminous sky; clear day, snowfall, and storm
+unchanged in character; all five clearly distinct. No console errors, no
+near-black or near-white frames. Identity clause: still the same calm organism —
+its nights just learned what latitude they live at. (Run supervised in-session
+because the 07:30 scheduled run stalled on a tool-permission prompt; see below.)
+Verdict:
