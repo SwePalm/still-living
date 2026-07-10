@@ -62,4 +62,5 @@ red body, and purple where it meets the blue; warmTint rosied to
 instead of flattening. Validated: clear day (pink-lit red over blue), dusk at
 night=0.5 (plum/purple blend, faint stars), 100%-cloud day (shapes clearly
 present), night states untouched. No console errors.
-Verdict:
+Verdict: (human, 2026-07-10) "The red looks much better than orange." Confirmed on
+the TV. The red base stays.
