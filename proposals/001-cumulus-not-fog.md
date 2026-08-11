@@ -1,6 +1,12 @@
 # proposal 001 — cumulus, not fog
 
-**Status:** human-originated (Stefan, 2026-08-11), awaiting an explicit go.
+**Status:** CARRIED OUT in generation 5 (2026-08-11) — partially. Stefan gave the go
+in-session. The self-shadowing (sketch item 2) shipped and is the whole of that
+generation. The billow noise (sketch item 1) was built, measured, and **rejected**:
+it lowered large-form luminance contrast at every strength tested, which is the exact
+failure mode of verdict 1. See the generation 5 entry in MUTATIONS.md for the numbers.
+Item 3's `solidity` dial died with the billow; only `form.shade` exists. Kept rather
+than deleted because the billow result is worth not rediscovering.
 **Scope:** out of free scope. Changes the shader's character, not just its values.
 
 ## Motivation

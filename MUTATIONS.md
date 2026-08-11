@@ -117,4 +117,81 @@ and size 0.11 → 0.115, for the real darkness returning to Stockholm in August 
 white nights end. It passed the gate on its own (starry night mean luminance 0.157
 vs 0.173 before, blue-dominant 27/42/66, stars slightly more present). Reverted
 unapplied so this generation stays a single clean repair.
+Verdict: (human, 2026-08-11) Rejected — not for a specific fault, but as not good
+enough to keep on the wall. The bar is Stefan's wife, and the piece was not clearing
+it. That verdict is what licensed a bold move here rather than a drift.
+
+## generation 5 — the ink learns where the light is (2026-08-11)
+
+Human-directed, implementing `proposals/001-cumulus-not-fog.md` — Stefan's own idea
+that the field was "very gas-light" and should read more like cumulus than fog. He
+gave the go in-session after generation 4 was rejected. That go also covers the two
+things here that are otherwise out of free scope: a change to the shader's character,
+and a new `form` block in genome.json (CONSTITUTION.md, "requires a human yes").
+
+The proposal had two halves. **One shipped, one failed its own gate.** The failure is
+the more useful record, so it goes first.
+
+**Rejected: billow noise.** Rectifying each octave (`mix(n, abs(n*2-1), solidity)`)
+does exactly what the proposal claimed — a crease at every zero crossing, and the
+silhouette gains cauliflower edges. In isolation it looked more cloud-like. But
+measured against generation 4 in a tight A/B on the same frame, changing only the
+dial, it destroyed large-form luminance contrast every time:
+
+| clear day, same moment | mean luminance | luminance SD |
+|---|---|---|
+| fog (generation 4) | 0.186 | 0.097 |
+| shading only | 0.207 | **0.112** |
+| shading + billow 0.25 | 0.187 | 0.075 |
+| shading + billow 0.55 | 0.171 | 0.061 |
+
+Root cause: smooth value noise concentrates near 0.5, so `abs(2n-1)` concentrates
+near 0 — each octave's contribution shrinks and the sum's variance collapses. The
+field gains fine texture and loses its big light/dark masses. That is precisely the
+trade verdict 1 forbade: shapes moving out of luminance, where cast compression eats
+them. It would have looked good here and turned to soup on the 65". Removed entirely,
+leaving no dead `solidity` knob in the genome. If billow is ever revisited it needs
+per-octave variance renormalisation, not a mix.
+
+**Shipped: directional self-shadowing.** The density field is sampled a second time,
+one step toward a light direction. Denser there means this pixel sits in another
+fold's shadow; thinner means it is the face turned into the light.
+`col *= 1.0 - sh * (occl - face * 0.75)`, with `sh` from the new `form.shade` (0.50).
+The light follows the sun the piece already tracks — overhead by day, raking low at
+night, swinging across the 80-minute dusk ramp — so its sense of time of day now
+shows up in the *form*, not only the palette. Cloud cover damps it
+(`* (1 - u_soft * 0.45)`): a clear day has a lit body, an overcast one goes flat.
+One more coupling to the world.
+
+The lit-face coefficient matters more than it looks. At the first value (0.45) the
+shadow outweighed the highlight and shading *lowered* luminance SD to 0.082 — form
+appearing, structure disappearing. At 0.75 the two balance and SD rises to 0.112,
+above the fog it replaced. So this mutation moves the way verdict 1 demanded: more of
+the composition carried in luminance, not less.
+
+Cost: 6 fbm taps per pixel become 8. Benchmarked by driving draws manually and
+syncing with a pixel read (`gl.finish()` is a no-op in the browser and reports
+nonsense — 43,000 fps): 0.123 → 0.150 ms/frame at 1080p, **+22%**. The governor
+absorbs that at roughly 0.9× the previous linear render scale, so 60fps holds and the
+image is marginally softer. Real TV fps is unverified from here — worth watching.
+
+Gate, five states plus both fallback checks: shader compiles, no console errors.
+Clear day 0.152 (RGB 55/31/38, red-dominant), overcast night 0.171 (38/44/55), starry
+night 0.175 (35/46/64), snowfall 0.247 (60/62/77), storm 0.156 (38/39/49) — all
+inside 0.04–0.85, no near-black, near-white at most 0.04%, all five clearly distinct.
+`DEFAULT_GENOME` verified equal to genome.json; served alone with genome.json removed,
+clear day renders the same red-over-slate with the same shading, so cold starts and
+offline show the current organism.
+
+Honest critique against the identity clause: still abstract, calm, continuous, still
+the ink. It gained depth without gaining drama — motion, breath and palette are
+untouched, and the shading is a multiply that cannot flash. The thing to watch is the
+night states, where lifting the lit faces pulls a slightly khaki cast out of the night
+palette's warm side. It reads as dusty rather than muddy at this strength, but if a
+future generation raises `form.shade` it will get worse before it gets better.
+
+**Constitution gap, for the human.** `form.shade` has no range in CONSTITUTION.md,
+which the agent may never edit, so future runs have no sanctioned bound. Suggested
+line under free scope's genome ranges: `form: shade 0–0.6`.
+
 Verdict:

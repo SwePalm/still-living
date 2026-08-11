@@ -63,6 +63,7 @@ uniform float u_flowRate; uniform float u_warpPush;
 uniform float u_expRate; uniform float u_expRange;
 uniform float u_contrast; uniform float u_vig; uniform float u_grain;
 uniform float u_starThresh; uniform float u_starSize; uniform float u_snowWash;
+uniform float u_shade;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -128,9 +129,25 @@ void main() {
   float s1 = exp2(mix(u_expRange, -u_expRange, ph1));
   float s2 = exp2(mix(u_expRange, -u_expRange, ph2));
   float w1 = 1.0 - abs(ph1 * 2.0 - 1.0);
-  float f1 = fbm(uv * s1 + w * r * u_warpPush);
-  float f2 = fbm(uv * s2 + w * r * u_warpPush + vec2(17.3, 9.1));
+  vec2 warp = w * r * u_warpPush;
+  float f1 = fbm(uv * s1 + warp);
+  float f2 = fbm(uv * s2 + warp + vec2(17.3, 9.1));
   float f = mix(f2, f1, w1);
+
+  // Solidity is a lighting property, not a silhouette one: a body reads as solid
+  // when it is lit from somewhere and shadows itself away from that light. Sample
+  // the same density one step toward the light — denser there means something is
+  // between us and it, thinner means this is the face turned into it. One extra
+  // pair of taps buys the whole illusion, with no marching.
+  // The light follows the sun the piece already tracks: overhead by day, raking
+  // low across the field at night, swinging over the 80-minute dusk ramp.
+  vec2 lightDir = normalize(mix(vec2(-0.34, 1.0), vec2(-0.92, 0.30), u_night));
+  vec2 luv = uv + lightDir * 0.15;
+  float l1 = fbm(luv * s1 + warp);
+  float l2 = fbm(luv * s2 + warp + vec2(17.3, 9.1));
+  float fl = mix(l2, l1, w1);
+  float occl = clamp((fl - f) * 3.0, 0.0, 1.0);  // sitting in another fold's shadow
+  float face = clamp((f - fl) * 3.0, 0.0, 1.0);  // turned toward the light
 
   // clouds soften contrast (u_contrast blended in JS); rain flattens and cools
   float fc = pow(clamp(f, 0.0, 1.0), u_contrast);
@@ -138,6 +155,10 @@ void main() {
   vec3 day = pal(fc, u_dayA, u_dayB, vec3(1.0), u_dayD);
   vec3 night = pal(fc, u_nightA, u_nightB, vec3(1.0), u_nightD);
   vec3 col = mix(day, night, u_night);
+
+  // the volume's own light, applied before the atmosphere layers over it
+  float sh = u_shade * (1.0 - u_soft * 0.45);
+  col *= 1.0 - sh * (occl - face * 0.75);
 
   // deep currents darken, fast eddies glow
   col = mix(col, col * vec3(0.35, 0.38, 0.45), clamp(length(q) * 0.55, 0.0, 1.0) * (1.0 - u_night * 0.4));
@@ -200,7 +221,7 @@ const GENOME_TAU_S = 60; // a new genome fades in over a couple of minutes
 // MUST be kept byte-for-byte in step with genome.json. Every mutation that
 // changes a genome value changes this too, in the same commit. See EVOLVE.md.
 const DEFAULT_GENOME = {
-  generation: 4,
+  generation: 5,
   species: "ink",
   breath: [
     { period: 7.3, amp: 0.26, phase: 0.0 },
@@ -218,6 +239,7 @@ const DEFAULT_GENOME = {
     warpPush: 1.5, expansionRate: 0.012, expansionRange: 0.6
   },
   look: { contrastCrisp: 1.45, contrastSoft: 1.08, vignette: 0.28, grain: 0.02 },
+  form: { shade: 0.50 },
   stars: { threshold: 0.94, size: 0.11, tint: [1.0, 1.05, 1.25] },
   snow: { wash: 0.45, tint: [0.85, 0.89, 0.98] },
   weather: {
@@ -306,7 +328,7 @@ for (const name of ["u_res", "u_time", "u_flow", "u_warp", "u_warmth", "u_soft",
   "u_snow", "u_night", "u_wmul", "u_dayA", "u_dayB", "u_dayD", "u_nightA", "u_nightB",
   "u_nightD", "u_tintWarm", "u_tintCool", "u_starTint", "u_snowTint", "u_flowRate",
   "u_warpPush", "u_expRate", "u_expRange", "u_contrast", "u_vig", "u_grain",
-  "u_starThresh", "u_starSize", "u_snowWash"]) {
+  "u_starThresh", "u_starSize", "u_snowWash", "u_shade"]) {
   U[name] = gl.getUniformLocation(prog, name);
 }
 
@@ -469,6 +491,7 @@ function frame(now) {
   gl.uniform1f(U.u_starThresh, G.stars.threshold);
   gl.uniform1f(U.u_starSize, G.stars.size);
   gl.uniform1f(U.u_snowWash, G.snow.wash);
+  gl.uniform1f(U.u_shade, G.form.shade);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
   // fps governor
