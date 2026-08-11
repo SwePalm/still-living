@@ -19,6 +19,14 @@ never more. CONSTITUTION.md is binding law; read it first, in full, every run.
    to verdicts. If your best idea is out of scope: write `proposals/NNN-slug.md`,
    open a GitHub issue `proposal: <slug>`, commit only that, and stop.
 
+   **Read `proposals/` too.** It is not only an outbox. Some entries are human-
+   originated — ideas Stefan raised in conversation, written down so they survive to
+   a run that can act on them. Each states its own scope. One marked *in free scope*
+   is a standing direction: take it as this run's mutation when the season and the
+   lineage agree, no further permission needed. One marked *awaiting a go* stays
+   untouched until a human says so. Delete or mark an entry once it has been carried
+   out, and name the proposal in the lineage entry so the two records stay tied.
+
 3. **Apply.** Edit genome.json (bump `generation`) and/or make an in-scope shader
    refinement in index.html.
 
