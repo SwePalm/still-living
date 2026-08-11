@@ -64,3 +64,57 @@ night=0.5 (plum/purple blend, faint stars), 100%-cloud day (shapes clearly
 present), night states untouched. No console errors.
 Verdict: (human, 2026-07-10) "The red looks much better than orange." Confirmed on
 the TV. The red base stays.
+
+## generation 4 — the fallback was still yellow (2026-08-11)
+
+Not a drift. A repair, human-directed mid-run: Stefan reported that the piece had
+"regressed back to blue and yellow" — the exact ochre-and-blue soup that verdict 1
+retired and generation 3 replaced with red.
+
+Root cause, and it was never in genome.json: the genome exists **twice**. Once in
+genome.json, which has carried the approved red palette since generation 3, and once
+as `DEFAULT_GENOME` compiled into index.html — and that copy was never updated. It
+still held the generation-0 ochre day palette `a [0.46, 0.42, 0.38]`,
+`b [0.38, 0.32, 0.28]`, `d [0.02, 0.12, 0.28]`, the yellow `warmTint
+[1.07, 1.00, 0.92]`, and `contrastSoft 0.95`.
+
+That copy is not only the offline safety net. `G` is initialised from it on *every*
+load and lerps toward the fetched genome over `GENOME_TAU_S = 60` — so every single
+cold start opened in the retired yellow and took minutes to become red, and any load
+where genome.json was unreachable stayed yellow forever. On a TV that reloads
+whenever the cast restarts, that is most of what the room actually saw. The evolving
+agent had been validating screenshots taken seconds after load and reading the stale
+fallback as if it were the current genome — the loop was grading the wrong organism.
+
+Fixed by syncing `DEFAULT_GENOME` to genome.json exactly: red day palette, rosy
+warmTint, night palette and `contrastSoft 1.08` from generations 2–3, `generation: 4`.
+No shader code and no loader logic touched; genome.json itself is unchanged from
+generation 3 apart from the generation number. Editing the body is normally out of
+free scope per CONSTITUTION.md — this had the human's explicit yes, given in-session.
+
+EVOLVE.md updated in the same commit so this cannot recur: a "two-copy rule" in the
+apply step, and two new gates in the validation step — a `node` one-liner that fails
+if `DEFAULT_GENOME` and genome.json disagree, and an offline render test (serve
+index.html alone, with no genome.json beside it, and look at what appears). Also a
+note in the remember step that a retired look must be purged from both copies, and
+an instruction to screenshot clear-day both immediately on load and after the genome
+settles — if the palette differs between the two, the fallback is stale.
+
+Screenshots: with genome.json removed entirely, clear day now renders deep red over
+slate-blue — the approved look — where before the fix the same test produced the
+rejected orange-and-blue. Served normally, clear day is red from the first frame
+(mean luminance 0.156, mean RGB 59/31/37, red-dominant). Overcast night, starry
+night, snowfall and storm all unchanged in character and clearly distinct; storm
+reads slate with muted red beneath, snow keeps its pale hush over a faint red body.
+No console errors in any state. All five within the 0.04–0.85 luminance gate
+(0.156–0.265). Identity clause: unchanged organism — this run took nothing away, it
+just stopped an ancestor from overwriting its descendant.
+
+Deferred to a future generation: a late-summer night drift, prepared and validated
+earlier this run before the repair took priority — `palette.night.a` down to
+[0.10, 0.12, 0.17] with `b` up to [0.13, 0.17, 0.23], stars threshold 0.94 → 0.935
+and size 0.11 → 0.115, for the real darkness returning to Stockholm in August as the
+white nights end. It passed the gate on its own (starry night mean luminance 0.157
+vs 0.173 before, blue-dominant 27/42/66, stars slightly more present). Reverted
+unapplied so this generation stays a single clean repair.
+Verdict:
