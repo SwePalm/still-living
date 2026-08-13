@@ -221,7 +221,7 @@ const GENOME_TAU_S = 60; // a new genome fades in over a couple of minutes
 // MUST be kept byte-for-byte in step with genome.json. Every mutation that
 // changes a genome value changes this too, in the same commit. See EVOLVE.md.
 const DEFAULT_GENOME = {
-  generation: 5,
+  generation: 6,
   species: "ink",
   breath: [
     { period: 7.3, amp: 0.26, phase: 0.0 },
@@ -230,7 +230,7 @@ const DEFAULT_GENOME = {
   ],
   palette: {
     day:   { a: [0.54, 0.40, 0.46], b: [0.42, 0.28, 0.32], d: [0.00, 0.15, 0.18] },
-    night: { a: [0.11, 0.13, 0.18], b: [0.12, 0.16, 0.22], d: [0.56, 0.63, 0.71] },
+    night: { a: [0.09, 0.11, 0.16], b: [0.14, 0.18, 0.24], d: [0.56, 0.63, 0.71] },
     warmTint: [1.08, 0.97, 0.98],
     coolTint: [0.94, 0.98, 1.07]
   },
@@ -240,7 +240,7 @@ const DEFAULT_GENOME = {
   },
   look: { contrastCrisp: 1.45, contrastSoft: 1.08, vignette: 0.28, grain: 0.02 },
   form: { shade: 0.50 },
-  stars: { threshold: 0.94, size: 0.11, tint: [1.0, 1.05, 1.25] },
+  stars: { threshold: 0.935, size: 0.115, tint: [1.0, 1.05, 1.25] },
   snow: { wash: 0.45, tint: [0.85, 0.89, 0.98] },
   weather: {
     flowBase: 0.5, flowWind: 0.9, warpBaseMood: 0.75,

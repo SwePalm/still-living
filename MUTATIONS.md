@@ -195,3 +195,86 @@ which the agent may never edit, so future runs have no sanctioned bound. Suggest
 line under free scope's genome ranges: `form: shade 0–0.6`.
 
 Verdict:
+
+## generation 6 — the dark comes back (2026-08-13)
+
+A pure seasonal drift, and the one generation 4 explicitly deferred: *"a late-summer
+night drift … for the real darkness returning to Stockholm in August as the white
+nights end."* Generation 2 lifted the night palette for the white nights of July.
+It is mid-August now; that lift is out of season, so the nights come back down.
+
+`palette.night.a` [0.11, 0.13, 0.18] → [0.09, 0.11, 0.16] and `b`
+[0.12, 0.16, 0.22] → [0.14, 0.18, 0.24]; `stars.threshold` 0.94 → 0.935 and
+`stars.size` 0.11 → 0.115, so a darker sky carries slightly more, slightly larger
+stars. Day, tints, motion, look, form, snow, weather untouched. All inside the
+constitution's ranges (a/b 0–1, threshold 0.90–0.98, size 0.05–0.20).
+
+Lowering the offset and raising the amplitude together is deliberate: the night gets
+darker *and* gains contrast, rather than simply dimming. Generation 4 had prepared a
+half-size version of this step ([0.10, 0.12, 0.17] / [0.13, 0.17, 0.23]). Measured, it
+moved mean luminance by 0.003 — below anything a room would notice, a generation spent
+on a rounding error. So the step was doubled after walking the ladder on the starry
+night at a fixed frame:
+
+| night a / b | mean luminance | luminance SD | mean rgb | near-black |
+|---|---|---|---|---|
+| [.11,.13,.18] / [.12,.16,.22] (gen 2, current) | 0.1600 | 0.0460 | 29, 42, 66 | 0.005% |
+| [.10,.12,.17] / [.13,.17,.23] (gen 4's deferred step) | 0.1573 | 0.0473 | 28, 41, 66 | 0.023% |
+| **[.09,.11,.16] / [.14,.18,.24] (chosen)** | **0.1546** | **0.0487** | **27, 40, 65** | **0.065%** |
+| [.08,.10,.15] / [.15,.19,.25] | 0.1520 | 0.0501 | 26, 40, 65 | 0.129% |
+
+The ladder is monotonic in the direction both standing verdicts ask for. Luminance SD
+*rises* as the night deepens — more of the composition carried in luminance, which is
+what verdict 1 demanded after the ochre soup. And red falls (29 → 27) while blue holds
+(66 → 65), so the blue anchor verdict 2 asked to keep gets *more* dominant, not less.
+The chosen step lands `a`'s red and green back at generation 0's pre-white-nights
+values while `b` stays well above anything the piece has had, so the nights are as dark
+as they were in spring but hold more structure than they ever did. Stopping at 2×
+rather than 3× keeps this a drift.
+
+It also nibbles at the flaw generation 5 flagged in itself — the khaki cast the new
+self-shadowing pulls out of the night palette's warm side. Side by side at the same
+state, generation 5 washes pale tan across most of the right half of the frame;
+generation 6 confines it to darker, narrower veins under a deeper blue mass. Improved,
+not solved: the dust is still visible and still the first thing to fix if a future run
+wants the nights cleaner. `form.shade` is the dial, and it still has no sanctioned
+range (see generation 5).
+
+Gate, five states at a fixed frame, 1280×720, mood forced to target (gen 5 → gen 6,
+mean luminance): clear day 0.1822 → 0.1822 **bit-identical**, as a night-only change
+must be — a useful check that the harness was measuring what it claimed; overcast
+night 0.1706 → 0.1668 (34,44,63 → 33,43,62); starry night 0.1600 → 0.1546; snowfall
+0.2525 → 0.2521; storm 0.1475 → 0.1473; dusk at night=0.5 0.1626 → 0.1608, still plum.
+All five inside 0.04–0.85 and clearly distinct in both luminance and hue. No near-white
+above 0.03%, no near-black frame — the worst case is 0.065% of *pixels* below 0.02 in a
+frame averaging 0.155. `gl.getError()` 0, no console errors. `DEFAULT_GENOME` verified
+equal to genome.json; served alone with genome.json returning 404, clear day renders
+the approved red-over-slate at generation 6, and the on-load and settled frames are
+identical (0.1822, rgb 82/31/38-class), so cold starts and offline show this organism.
+
+Identity clause, honestly: this is the mildest kind of mutation — no motion, no breath,
+no shader code, one palette block and two star numbers. Still abstract, calm,
+continuous; a palette cannot flash. The risk in a darker night is dullness rather than
+drama, and the rising luminance SD is the evidence against that. It should read as
+"the nights have gotten darker, the way they do in August."
+
+**Method note, for future runs.** Two traps cost most of this run, both of which make a
+validation *look* clean while measuring nothing. (1) The port in EVOLVE.md's example was
+already held by another checkout's server; `http-server` failed to bind, and the browser
+happily measured a stale tree that also said "generation 5". Always assert the served
+generation *and the actual mutated values* from inside the page before trusting a number.
+(2) The browser pane collapses to a 2×2 viewport when it is not fronted, so anything that
+calls the page's `resize()` measures a 4-pixel image and reports plausible-looking
+statistics. Set `canvas.width/height` explicitly instead. The reliable harness is to call
+the page's own `frame(now)` synchronously with a pinned canvas, `mood` forced to `target`
+and `G` forced to `Gt`, then `gl.readPixels` — deterministic, identical frame before and
+after, and independent of pane visibility.
+
+`proposals/002-green-as-a-third-base.md` was considered and deliberately left for a
+later run: it is marked in free scope, but it warns in its own Season risk that green in
+late August is against the year and suggests the night palette as its first home. This
+generation takes the nights the other way, into darkness, so green waits — and if it is
+ever tried on the night palette, it should be tried against *this* night, not gen 2's.
+`proposals/001-cumulus-not-fog.md` was already closed by generation 5 and needed nothing
+here. No proposal was written this run: the mutation was in free scope.
+Verdict:
