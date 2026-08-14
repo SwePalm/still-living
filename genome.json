@@ -1,10 +1,10 @@
 {
-  "generation": 6,
+  "generation": 7,
   "species": "ink",
   "breath": [
-    { "period": 7.3, "amp": 0.26, "phase": 0.0 },
-    { "period": 11.9, "amp": 0.15, "phase": 1.7 },
-    { "period": 28.6, "amp": 0.09, "phase": 4.2 }
+    { "period": 8.6, "amp": 0.22, "phase": 0.0 },
+    { "period": 13.7, "amp": 0.15, "phase": 1.7 },
+    { "period": 33.1, "amp": 0.13, "phase": 4.2 }
   ],
   "palette": {
     "day":   { "a": [0.54, 0.40, 0.46], "b": [0.42, 0.28, 0.32], "d": [0.00, 0.15, 0.18] },

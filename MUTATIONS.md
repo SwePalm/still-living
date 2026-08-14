@@ -278,3 +278,105 @@ ever tried on the night palette, it should be tried against *this* night, not ge
 `proposals/001-cumulus-not-fog.md` was already closed by generation 5 and needed nothing
 here. No proposal was written this run: the mutation was in free scope.
 Verdict:
+
+## generation 7 — the year starts to slow down (2026-08-14)
+
+The first mutation to the **breath**. Six generations have gone by and nobody has
+touched it: four were palette (1, 2, 3, 6), one was a repair (4), one was form (5).
+The genome's oscillators have carried generation 0's numbers the whole way. A piece
+that only ever changes colour is drifting along one dimension, and the constitution
+names breath as one of the three timescales the thing is alive at — so this run takes
+the seconds.
+
+`breath` 7.3s/0.26, 11.9s/0.15, 28.6s/0.09 → **8.6s/0.22, 13.7s/0.15, 33.1s/0.13**.
+Phases untouched. Every period ~16% longer, and amplitude moved off the fast oscillator
+onto the slow one. Sum of amps stays at exactly 0.50 (cap 0.5), count stays at 3
+(range 2–4), periods stay inside 4–60s. Nothing else in the genome changed — no
+palette, no motion, no look, no form, no stars, no snow, no weather.
+
+Mid-August in Stockholm: the light is going, the year is slowing. So does the organism.
+The direction is also the one the identity clause asks for by default — *when in doubt:
+quieter*.
+
+**What breath actually drives, and why this mutation cannot flash.** Breath feeds one
+uniform: `u_wmul = warpBase + warpBreath * breath`, i.e. turbulence between 0.85 and
+1.03. It never touches colour, contrast, or brightness. Measured on the same frame,
+generation 6's breath against generation 7's, across 15 fixed moments: mean luminance
+differed by at most **0.0007** and averaged 0.1641 vs 0.1642, luminance SD 0.0769 vs
+0.0768. Full-field luminance is, to within a rounding error, *identical*. Against the
+hard physiological limit this is the safest class of mutation the genome permits — and
+the fastest oscillator went from 7.3s to 8.6s, moving further from the 4s floor, not
+toward it.
+
+**Which raises the fair question: is it visible at all?** Yes, and it is visible as
+tempo, which is the only place a breath change should show. Three measurements, all on
+pinned 1280×720 frames with mood forced to target and `G` forced to `Gt`:
+
+| | gen 6 breath | gen 7 breath | |
+|---|---|---|---|
+| mean half-cycle of the breath signal (4000s sim) | 3.65s | **4.30s** | +17.8% slower |
+| peak d(breath)/dt | 0.3227/s | **0.2542/s** | −21.2% |
+| image change per second (RMS luminance, 10 samples) | 0.00909 | **0.00809** | −11% |
+| peak change rate | 0.01638 | **0.01262** | −23% |
+| peak-to-trough of the change rate | 3.58× | **2.67×** | more even |
+
+And the two breaths put the organism in genuinely different configurations: the
+same-instant RMS luminance difference between them averages **0.01155** over eight
+moments — *larger than a full second of the piece's own motion* (0.0081–0.0091/s). This
+is not a rounding error dressed up as a generation.
+
+**The honest critique, and it is a real one.** The peak-to-trough figure is the cost.
+Generation 6 breathed unevenly — gusts and lulls, 3.58× between its fastest and slowest
+moments. Generation 7 breathes at 2.67×: slower, deeper, and *more regular*. The long
+swell got stronger, the seconds-scale gustiness got gentler. That is calmer, which the
+constitution endorses, but calmer and more even is one step from inert, and the standing
+verdict on generation 4 was that the piece was not good enough to keep on the wall. If
+the human's read is that it lost life rather than gained calm, the fix is cheap and
+known: the two dials are separable — put amplitude back on the 8.6s oscillator without
+shortening the periods, and the tempo stays slow while the gustiness returns.
+
+Which names this run's one methodological confound plainly: **period and amplitude
+distribution were moved together.** It is one coherent change to one genome block, so
+it is one mutation, but it is not one *variable*. A future run wanting to know which
+half did the work should move only one.
+
+Gate, five states, three moments each (ts = 12/34/57s) so a breath-modulated state is
+judged across its cycle rather than at one phase. 1280×720, mood forced to target,
+`gl.getError()` 0 in every sample:
+
+| state | mean luminance | luminance SD | mean rgb (worst sample) | near-black | near-white |
+|---|---|---|---|---|---|
+| clear day | 0.1532 – 0.2086 | 0.071 – 0.110 | 57,30,37 → 87,38,42 | 0% | 0% |
+| overcast night | 0.1621 – 0.1709 | 0.043 – 0.047 | 31,42,62 | 0.030% | 0% |
+| starry night | 0.1471 – 0.1748 | 0.040 – 0.048 | 25,39,64 | 0.169% | 0.001% |
+| snowfall | 0.2453 – 0.2603 | 0.075 – 0.083 | 73,61,76 | 0% | 0.017% |
+| storm | 0.1538 – 0.1649 | 0.036 – 0.048 | 39,38,47 | 0% | 0% |
+
+All inside 0.04–0.85, no near-black or near-white frame anywhere (the worst case is
+0.169% of *pixels* below 0.02 in a frame averaging 0.147), and the five are clearly
+distinct in both hue and structure: red-over-slate day, blue overcast night, blue with
+stars, pale hush over faint red for snow, flat slate with muted red beneath for storm.
+Shader compiles; the only console error in the whole run was the deliberate 404 in the
+offline test below.
+
+Both fallback gates pass. `DEFAULT_GENOME` verified equal to genome.json by the EVOLVE.md
+one-liner ("fallback in sync, generation 7"). Served alone with genome.json returning
+404, the page reports generation 7 with the mutated breath and the approved red day
+palette, and the on-load frame and the settled frame are **bit-identical** (0.1771,
+rgb 71/33/38) — and equal to the same moment on the normally-served page, so cold starts
+and offline show this organism and not an ancestor.
+
+Identity clause: abstract, calm, continuous, unmistakably the same ink. No shader code
+was touched. It should read as *"it's breathing more slowly than it was."*
+
+**Still open, third generation of asking.** The khaki cast the generation-5 shading
+pulls out of the night palette's warm side is unchanged — visible in this run's overcast
+and starry screenshots as tan veins around a blue mass. `form.shade` is the dial and it
+*still* has no sanctioned range in CONSTITUTION.md, which the agent may not edit, so no
+run can legally touch it. Suggested line under free scope's genome ranges, unchanged
+from generation 5: `form: shade 0–0.6`.
+
+`proposals/002-green-as-a-third-base.md` waits another run, for the reason it gives
+itself: green in late August is against the year. Nothing has changed that. No proposal
+was written this run; the mutation was in free scope.
+Verdict:
